@@ -9,6 +9,8 @@ import CloseIcon from '@mui/icons-material/Close'
 
 // Backend base URL (local or production via env)
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+console.log("BACKEND USED BY FRONTEND =", BACKEND);
+
 
 
 function formatDate(d) {
@@ -69,6 +71,10 @@ function buildTimeSlots() {
     const [submitting, setSubmitting] = useState(false) 
     const [datePinCache, setDatePinCache] = useState({}) // keys: 'YYYY-MM-DD' -> array of pins for that date
     const [imageKey, setImageKey] = useState(0);
+    const [drafts, setDrafts] = useState([])
+    const [activeDraftMenu, setActiveDraftMenu] = useState(null)
+    const [editingDraftId, setEditingDraftId] = useState(null)
+
     
     const pins = useMemo(() => {
       if (!selectedDate) return []
@@ -168,6 +174,7 @@ function buildTimeSlots() {
 
           return res.json();
         })
+        
         .then(data => {
           if (cancelled || !data) return;
 
@@ -175,7 +182,22 @@ function buildTimeSlots() {
 
           setBoards(boardsList);
 
+          // =========================
+          // ✅ FETCH DRAFTS (PART 6)
+          // =========================
+          fetch(`${BACKEND}/drafts`, { credentials: "include" })
+            .then(res => res.json())
+            .then(draftsData => {
+              if (!cancelled && Array.isArray(draftsData)) {
+                setDrafts(draftsData);
+              }
+            })
+            .catch(err => {
+              console.error("Drafts fetch failed:", err);
+              if (!cancelled) setDrafts([]);
+            });
         })
+
         .catch(err => {
           console.error("Boards fetch failed:", err);
           if (!cancelled) setBoards([]);
@@ -199,6 +221,21 @@ function buildTimeSlots() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate, refreshKey, isConnected]);
 
+
+    useEffect(() => {
+      if (!isConnected) return;
+
+      fetch(`${BACKEND}/drafts`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setDrafts(data);
+          }
+        })
+        .catch(err => {
+          console.error("Drafts fetch failed:", err);
+        });
+    }, [isConnected]);
 
 
    
@@ -381,6 +418,20 @@ function buildTimeSlots() {
       // if no allowed slots remain (late night), return last slot so the user can still pick something
       return allowed.length ? allowed : [timeSlots[timeSlots.length - 1]]
     }
+
+
+    function loadDraft(d) {
+  setForm({
+    title: d.title || "",
+    description: d.description || "",
+    link: d.link || "",
+    board_id: d.board_id || "",
+    image_url: d.image_url || ""
+  })
+
+  setEditingDraftId(d.id) // 🔥 THIS IS KEY
+}
+
 
 
 
@@ -576,6 +627,25 @@ function buildTimeSlots() {
         setPinsLoading(false)
       }
     }
+
+
+    async function duplicateDraft(id) {
+      await fetch(`${BACKEND}/drafts/${id}/duplicate`, {
+        method: "POST",
+        credentials: "include"
+      })
+      const res = await fetch(`${BACKEND}/drafts`, { credentials: "include" })
+      setDrafts(await res.json())
+    }
+
+    async function deleteDraft(id) {
+      await fetch(`${BACKEND}/drafts/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      })
+      setDrafts(drafts.filter(d => d.id !== id))
+    }
+
 
     // ------------------ END REPLACEMENT ------------------
 
@@ -1101,6 +1171,85 @@ function buildTimeSlots() {
                 )
               })}
             </div>
+            {/* ================== DRAFTS SECTION ================== */}
+            <div className="mt-6 border-t pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <Typography variant="subtitle1" className="font-semibold">
+                  Drafts
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {drafts.length}
+                </Typography>
+              </div>
+
+              <div className="space-y-2 max-h-56 overflow-y-auto">
+                {drafts.length === 0 && (
+                  <div className="text-sm text-gray-500 text-center py-2">
+                    No drafts yet
+                  </div>
+                )}
+
+                {drafts.map(d => (
+                  <div
+                    key={d.id}
+                    onClick={() => loadDraft(d)}
+                    className="flex items-center justify-between p-2 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer relative"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      {d.image_url && (
+                        <img
+                          src={d.image_url}
+                          alt=""
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      )}
+                      <div className="truncate text-sm font-medium">
+                        {d.title || 'Untitled draft'}
+                      </div>
+                    </div>
+
+                    {/* ⋮ menu button */}
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        e.stopPropagation()
+                        setActiveDraftMenu(d.id)
+                      }}
+                    >
+                      ⋮
+                    </IconButton>
+
+                    {/* Menu */}
+                    {activeDraftMenu === d.id && (
+                      <div className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            duplicateDraft(d.id)
+                            setActiveDraftMenu(null)
+                          }}
+                          className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                        >
+                          Duplicate
+                        </button>
+
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            deleteDraft(d.id)
+                            setActiveDraftMenu(null)
+                          }}
+                          className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* ================== END DRAFTS ================== */}
           </Paper>
 
           <Paper elevation={3} className="col-span-6 p-6">
@@ -1287,6 +1436,36 @@ function buildTimeSlots() {
               </div>
 
               <div className="col-span-2 mt-4 flex gap-4 items-center">
+                <Button
+                  variant="outlined"
+                  onClick={async () => {
+                    const res = await fetch(`${BACKEND}/draft`, {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        ...form,
+                        id: editingDraftId // 🔥 KEY LINE
+                      })
+                    })
+
+                    const data = await res.json()
+
+                    if (data.ok) {
+                      setDrafts(prev => {
+                        // remove old version if updating
+                        const others = prev.filter(d => d.id !== data.draft.id)
+                        return [data.draft, ...others]
+                      })
+
+                      setEditingDraftId(null) // 🔥 exit edit mode
+                      resetForm()
+                    }
+                  }}
+                >
+                  Save to Draft
+                </Button>
+
                 <Button
                   type="button"
                   variant="contained"
