@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Scheduler: independent scrolling for calendar & pin list ===== */
+.calendar-container {
+  /* allow the calendar day list to scroll while keeping header visible */
+  max-height: calc(100vh - 240px); /* adjust if needed */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;       /* prevents content from hiding under scrollbar */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.pin-status-container {
+  /* pin status list independent scroll */
+  max-height: calc(100vh - 220px); /* adjust if needed */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* optional: slightly nicer scrollbar on desktop (non-essential) */
+.calendar-container::-webkit-scrollbar,
+.pin-status-container::-webkit-scrollbar {
+  width: 10px;
+}
+.calendar-container::-webkit-scrollbar-thumb,
+.pin-status-container::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: rgba(0,0,0,0.12);
+}
