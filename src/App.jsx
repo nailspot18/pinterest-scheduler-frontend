@@ -167,7 +167,7 @@ function buildTimeSlots() {
 
           // ✅ auto-select first account (important)
           if (!selectedAccountId && data.length > 0) {
-            setSelectedAccountId(data[0].id)
+            setSelectedAccountId(data[0].account_id)
           }
         })
         .catch(err => {
@@ -687,7 +687,12 @@ function buildTimeSlots() {
           "X-Account-ID": selectedAccountId
         }
       })
-      const res = await fetch(`${BACKEND}/drafts`, { credentials: "include" })
+      const res = await fetch(`${BACKEND}/drafts`, {
+        credentials: "include",
+        headers: {
+          "X-Account-ID": selectedAccountId
+        }
+      })
       setDrafts(await res.json())
     }
 
@@ -836,6 +841,12 @@ function buildTimeSlots() {
     }
 
     async function uploadFile(file) {
+      // 🔒 GUARD: account must be selected before upload
+      if (!selectedAccountId) {
+        setUploadError("Please select an account first");
+        setUploading(false);
+        return;
+      }
       setUploading(true)
       setUploadProgress(0)
       setUploadError(null)
@@ -1401,8 +1412,8 @@ function buildTimeSlots() {
                   </MenuItem>
 
                   {accounts.map(acc => (
-                    <MenuItem key={acc.id} value={acc.id}>
-                      {acc.name}
+                    <MenuItem key={acc.account_id} value={acc.account_id}>
+                      {acc.username}
                     </MenuItem>
                   ))}
                   {/* ✅ ADD THIS — IT DOES NOT EXIST YET */}
