@@ -74,6 +74,10 @@ function buildTimeSlots() {
     const [drafts, setDrafts] = useState([])
     const [activeDraftMenu, setActiveDraftMenu] = useState(null)
     const [editingDraftId, setEditingDraftId] = useState(null)
+    // ===== ACCOUNT SWITCHER STATE =====
+    const [accounts, setAccounts] = useState([])
+    const [selectedAccountId, setSelectedAccountId] = useState(null)
+    const [accountsLoading, setAccountsLoading] = useState(false)
 
     
     const pins = useMemo(() => {
@@ -102,6 +106,8 @@ function buildTimeSlots() {
     const [pinsLoading, setPinsLoading] = useState(false)
 
     const [isConnected, setIsConnected] = useState(false);
+
+    const accountReady = Boolean(isConnected && selectedAccountId)
     
     useEffect(() => {
       const checkAuth = async () => {
@@ -140,8 +146,59 @@ function buildTimeSlots() {
       return url;
     }
 
+    // ===== FETCH CONNECTED ACCOUNTS =====
+    useEffect(() => {
+      if (!isConnected) {
+        setAccounts([])
+        setSelectedAccountId(null)
+        return
+      }
+
+      let cancelled = false
+      setAccountsLoading(true)
+
+      fetch(`${BACKEND}/accounts`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          if (cancelled) return
+          if (!Array.isArray(data)) return
+
+          setAccounts(data)
+
+          // ✅ auto-select first account (important)
+          if (!selectedAccountId && data.length > 0) {
+            setSelectedAccountId(data[0].id)
+          }
+        })
+        .catch(err => {
+          console.error("Accounts fetch failed", err)
+          if (!cancelled) setAccounts([])
+        })
+        .finally(() => {
+          if (!cancelled) setAccountsLoading(false)
+        })
+
+      return () => { cancelled = true }
+    }, [isConnected])
+
     
-   
+    // ===== HARD RESET ON ACCOUNT SWITCH =====
+    useEffect(() => {
+      if (!selectedAccountId) return
+
+      console.log("Switched to account:", selectedAccountId)
+
+      // 🔥 clear all account-scoped data
+      setBoards([])
+      setDrafts([])
+      setDatePinCache({})
+      setSelectedDate(days[0])
+
+      // force refetch everywhere
+      setRefreshKey(k => k + 1)
+    }, [selectedAccountId])
+
+
     // Fetch boards (from backend) on mount
     useEffect(() => {
       if (!isConnected) {
@@ -153,7 +210,12 @@ function buildTimeSlots() {
       let cancelled = false;
       setBoardsLoading(true);
 
-      fetch(`${BACKEND}/boards`, { credentials: "include" })
+      fetch(`${BACKEND}/boards`, {
+        credentials: "include",
+        headers: {
+          "X-Account-ID": selectedAccountId
+        }
+      })
         .then(async res => {
           if (res.status === 401) {
             setIsConnected(false);
@@ -185,7 +247,12 @@ function buildTimeSlots() {
           // =========================
           // ✅ FETCH DRAFTS (PART 6)
           // =========================
-          fetch(`${BACKEND}/drafts`, { credentials: "include" })
+          fetch(`${BACKEND}/drafts`, {
+            credentials: "include",
+            headers: {
+              "X-Account-ID": selectedAccountId
+            }
+          })
             .then(res => res.json())
             .then(draftsData => {
               if (!cancelled && Array.isArray(draftsData)) {
@@ -225,7 +292,12 @@ function buildTimeSlots() {
     useEffect(() => {
       if (!isConnected) return;
 
-      fetch(`${BACKEND}/drafts`, { credentials: "include" })
+      fetch(`${BACKEND}/drafts`, {
+        credentials: "include",
+        headers: {
+          "X-Account-ID": selectedAccountId
+        }
+      })
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -632,7 +704,10 @@ function buildTimeSlots() {
     async function duplicateDraft(id) {
       await fetch(`${BACKEND}/drafts/${id}/duplicate`, {
         method: "POST",
-        credentials: "include"
+        credentials: "include",
+        headers: {
+          "X-Account-ID": selectedAccountId
+        }
       })
       const res = await fetch(`${BACKEND}/drafts`, { credentials: "include" })
       setDrafts(await res.json())
@@ -641,7 +716,10 @@ function buildTimeSlots() {
     async function deleteDraft(id) {
       await fetch(`${BACKEND}/drafts/${id}`, {
         method: "DELETE",
-        credentials: "include"
+        credentials: "include",
+        headers: {
+          "X-Account-ID": selectedAccountId
+        }
       })
       setDrafts(drafts.filter(d => d.id !== id))
     }
@@ -790,6 +868,7 @@ function buildTimeSlots() {
         await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open('POST', uploadUrl)
+          xhr.setRequestHeader("X-Account-ID", selectedAccountId)
           xhr.responseType = 'json'
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
@@ -922,7 +1001,10 @@ function buildTimeSlots() {
         const res = await fetch(`${BACKEND}/schedule`, {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Account-ID": selectedAccountId
+          },
           body: JSON.stringify({
             client_id: clientId,
             title: payload.title,
@@ -1034,7 +1116,10 @@ function buildTimeSlots() {
         const res = await fetch(`${BACKEND}/post_now`, {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Account-ID": selectedAccountId
+          },
           body: JSON.stringify({
             client_id: clientId,
             title: payload.title,
@@ -1133,127 +1218,176 @@ function buildTimeSlots() {
 
 
     return (
-      <Container maxWidth="xl" className="py-6">
-        <Typography variant="h4" className="mb-4">Nailspot Pin Scheduler</Typography>
-        <Box className="grid grid-cols-12 gap-6">
+      <Container maxWidth="xl" className="py-6" style={{ height: "100vh", overflow: "hidden" }}>
+        <Box className="flex items-center justify-between mb-6">
+          <Box>
+            <Typography variant="h4" fontWeight={400}>
+              Nailspot Pin Scheduler
+            </Typography>
+          </Box>
+        </Box>    
+        <Box
+          className="grid grid-cols-12 gap-6"
+          style={{
+            height: "100%",
+            overflow: "hidden",
+          }}
+        >
 
-          <Paper elevation={3} className="col-span-3 p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <CalendarTodayIcon />
-              <Typography variant="h6">30-Day Calendar</Typography>
-            </div>
-            <div className="space-y-2 calendar-container" role="list">
-              {days.map((d, i) => {
-                const isSelected = selectedDate && selectedDate.toDateString() === d.toDateString()
-                return (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setSelectedDate(d)
-                    }}
-                    
-                    
-                    aria-pressed={isSelected}
-                    className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'}`}>
-                    <div className="font-semibold">{formatDate(d)}</div>
-                    {/* Counts for this date */}
-                    {(() => {
-                      const counts = getCountsForDate(d)
-                      return (
-                        <div className="text-sm text-white-500 mt-1">
-                          <div className="text-xs">Scheduled: <span className="font-semibold">{counts.scheduled}</span></div>
-                          <div className="text-xs">Posted: <span className="font-semibold">{counts.posted}</span></div>
-                          <div className="text-xs">Total: <span className="font-semibold">{counts.total}</span></div>
-                        </div>
-                      )
-                    })()}
-                  </button>
-                )
-              })}
-            </div>
-            {/* ================== DRAFTS SECTION ================== */}
-            <div className="mt-6 border-t pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <Typography variant="subtitle1" className="font-semibold">
-                  Drafts
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {drafts.length}
-                </Typography>
+          <Paper
+            elevation={1}
+            sx={{ borderRadius: 2 }}
+            className="col-span-3 p-0 flex flex-col"
+            style={{
+              height: "100%",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              className="p-4 border-b"
+              style={{ height: "45%", display: "flex", flexDirection: "column" }}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarTodayIcon />
+                <Typography variant="h6">30-Day Calendar</Typography>
               </div>
-
-              <div className="space-y-2 max-h-56 overflow-y-auto">
-                {drafts.length === 0 && (
-                  <div className="text-sm text-gray-500 text-center py-2">
-                    No drafts yet
-                  </div>
-                )}
-
-                {drafts.map(d => (
-                  <div
-                    key={d.id}
-                    onClick={() => loadDraft(d)}
-                    className="flex items-center justify-between p-2 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer relative"
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      {d.image_url && (
-                        <img
-                          src={d.image_url}
-                          alt=""
-                          className="w-10 h-10 object-cover rounded"
-                        />
-                      )}
-                      <div className="truncate text-sm font-medium">
-                        {d.title || 'Untitled draft'}
-                      </div>
-                    </div>
-
-                    {/* ⋮ menu button */}
-                    <IconButton
-                      size="small"
-                      onClick={e => {
-                        e.stopPropagation()
-                        setActiveDraftMenu(d.id)
+              <div
+                className="space-y-2 calendar-container"
+                role="list"
+                style={{ overflowY: "auto", flex: 1 }}
+              >
+                {days.map((d, i) => {
+                  const isSelected = selectedDate && selectedDate.toDateString() === d.toDateString()
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setSelectedDate(d)
                       }}
-                    >
-                      ⋮
-                    </IconButton>
-
-                    {/* Menu */}
-                    {activeDraftMenu === d.id && (
-                      <div className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md">
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            duplicateDraft(d.id)
-                            setActiveDraftMenu(null)
-                          }}
-                          className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-                        >
-                          Duplicate
-                        </button>
-
-                        <button
-                          onClick={e => {
-                            e.stopPropagation()
-                            deleteDraft(d.id)
-                            setActiveDraftMenu(null)
-                          }}
-                          className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      
+                      
+                      aria-pressed={isSelected}
+                      className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-blue-50'}`}>
+                      <div className="font-semibold">{formatDate(d)}</div>
+                      {/* Counts for this date */}
+                      {(() => {
+                        const counts = getCountsForDate(d)
+                        return (
+                          <div className="text-sm text-white-500 mt-1">
+                            <div className="text-xs">Scheduled: <span className="font-semibold">{counts.scheduled}</span></div>
+                            <div className="text-xs">Posted: <span className="font-semibold">{counts.posted}</span></div>
+                            <div className="text-xs">Total: <span className="font-semibold">{counts.total}</span></div>
+                          </div>
+                        )
+                      })()}
+                    </button>
+                  )
+                })}
               </div>
-            </div>
+            </div>  
+            {/* ================== DRAFTS SECTION ================== */}
+              
+              <div
+                className="p-4"
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Typography variant="subtitle1" className="font-semibold">
+                    Drafts
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {drafts.length}
+                  </Typography>
+                </div>
+
+                <div
+                  className="space-y-2"
+                  style={{ overflowY: "auto", flex: 1 }}
+                >
+                  {drafts.length === 0 && (
+                    <div className="text-sm text-gray-500 text-center py-2">
+                      No drafts yet
+                    </div>
+                  )}
+
+                  {drafts.map(d => (
+                    <div
+                      key={d.id}
+                      onClick={() => loadDraft(d)}
+                      className="flex items-center justify-between p-2 rounded-md bg-gray-100 hover:bg-gray-200 cursor-pointer relative"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {d.image_url && (
+                          <img
+                            src={d.image_url}
+                            alt=""
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                        )}
+                        <div className="truncate text-sm font-medium">
+                          {d.title || 'Untitled draft'}
+                        </div>
+                      </div>
+
+                      {/* ⋮ menu button */}
+                      <IconButton
+                        size="small"
+                        onClick={e => {
+                          e.stopPropagation()
+                          setActiveDraftMenu(d.id)
+                        }}
+                      >
+                        ⋮
+                      </IconButton>
+
+                      {/* Menu */}
+                      {activeDraftMenu === d.id && (
+                        <div className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md">
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              duplicateDraft(d.id)
+                              setActiveDraftMenu(null)
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                          >
+                            Duplicate
+                          </button>
+
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              deleteDraft(d.id)
+                              setActiveDraftMenu(null)
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             {/* ================== END DRAFTS ================== */}
           </Paper>
 
-          <Paper elevation={3} className="col-span-6 p-6">
-            <div className="flex justify-end mb-4">
+          <Paper
+            elevation={1}
+            sx={{ borderRadius: 2 }}
+            className="col-span-6 p-6"
+            style={{
+              height: "100%",
+              overflowY: "auto"
+            }}
+          >
+
+          <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50">
+            <div className="flex justify-between items-center mb-3">
+              <Typography variant="h6">Create / Schedule Pin</Typography>
+
+              <div>
               <Button
                 variant="contained"
                 color={isConnected ? "success" : "primary"}
@@ -1266,11 +1400,39 @@ function buildTimeSlots() {
                 {isConnected ? "Connected ✓" : "Connect to Pinterest"}
               </Button>
             </div>
-            <Typography variant="h6" className="mb-4">Create / Schedule Pin</Typography>
-            <div className="grid grid-cols-2 gap-4">
+
+              {/* ===== ACCOUNT SWITCHER ===== */}
+              <FormControl size="small" style={{ minWidth: 220 }}>
+                <Select
+                  value={selectedAccountId || ""}
+                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  displayEmpty
+                  disabled={accountsLoading || !isConnected}
+                >
+                  <MenuItem value="" disabled>
+                    Select Account
+                  </MenuItem>
+
+                  {accounts.map(acc => (
+                    <MenuItem key={acc.account_id} value={acc.account_id}>
+                      {acc.username}
+                    </MenuItem>
+                  ))}
+                  {/* ✅ ADD THIS — IT DOES NOT EXIST YET */}
+                  <MenuItem
+                    value="__add_account__"
+                    sx={{ fontStyle: "italic", color: "primary.main" }}
+                  >
+                    + Add another account
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </div>
+          </div>   
+            <div className="grid grid-cols-12 gap-4 p-4" >
               <TextField
                 label="Title"
-                className="col-span-2"
+                className="col-span-12"
                 fullWidth
                 value={form.title}
                 onChange={e => setForm({ ...form, title: e.target.value })}
@@ -1280,7 +1442,7 @@ function buildTimeSlots() {
                 label="Description"
                 multiline
                 rows={3}
-                className="col-span-2"
+                className="col-span-12"
                 fullWidth
                 value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
@@ -1288,12 +1450,13 @@ function buildTimeSlots() {
 
               <TextField
                 label="URL"
+                className="col-span-6"
                 fullWidth
                 value={form.link}
                 onChange={e => setForm({ ...form, link: e.target.value })}
               />
 
-              <div className="flex items-end gap-2">
+              <div className="col-span-6 flex items-end gap-2">
                 <FormControl fullWidth>
                   <InputLabel id="board-select-label">Select board</InputLabel>
                   <Select
@@ -1301,7 +1464,7 @@ function buildTimeSlots() {
                     value={form.board_id}
                     label="Select board"
                     onChange={e => setForm({ ...form, board_id: e.target.value })}
-                    disabled={boardsLoading}
+                    disabled={boardsLoading || !accountReady}
                   >
                     <MenuItem value="">Select</MenuItem>
                     {boards.map(b => (
@@ -1313,7 +1476,7 @@ function buildTimeSlots() {
               </div>
 
               
-                <div className="col-span-2">
+                <div className="col-span-12">
                   <Typography className="mb-1">Image</Typography>
                   <div
                     onDragOver={onDragOver}
@@ -1414,12 +1577,12 @@ function buildTimeSlots() {
                     style={{ display: 'none' }}
                   />
                 </div>           
-              <div>
+              <div className="col-span-6">
                 <Typography className="mb-1">Date</Typography>
                 <TextField value={selectedDate ? selectedDate.toDateString() : ''} fullWidth InputProps={{ readOnly: true }} />
               </div>
 
-              <div>
+              <div className="col-span-6">
                 <Typography className="mb-1">Time (30-min intervals)</Typography>
                   <TextField
                     select
@@ -1435,14 +1598,28 @@ function buildTimeSlots() {
                   </TextField>
               </div>
 
-              <div className="col-span-2 mt-4 flex gap-4 items-center">
+              {/* ===== ACCOUNT REQUIRED HINT ===== */}
+              {!accountReady && (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  className="col-span-12 mb-2 block"
+                >
+                  Select an account to continue
+                </Typography>
+              )}
+
+              <div className="col-span-12 mt-4 flex gap-4 items-center">
                 <Button
                   variant="outlined"
                   onClick={async () => {
                     const res = await fetch(`${BACKEND}/draft`, {
                       method: "POST",
                       credentials: "include",
-                      headers: { "Content-Type": "application/json" },
+                      headers: {
+                        "Content-Type": "application/json",
+                        "X-Account-ID": selectedAccountId
+                      },
                       body: JSON.stringify({
                         ...form,
                         id: editingDraftId // 🔥 KEY LINE
@@ -1480,7 +1657,7 @@ function buildTimeSlots() {
                       image_url: form.image_url
                     })
                   }}
-                  disabled={!hasImage || uploading}
+                  disabled={!accountReady || !hasImage || uploading}
                 >
                   Post Now
                 </Button>
@@ -1500,7 +1677,7 @@ function buildTimeSlots() {
                       scheduled_at: iso
                     })
                   }}
-                  disabled={scheduleDisabled || submitting}
+                  disabled={!accountReady || scheduleDisabled || submitting}
                 >
                   {submitting ? 'Scheduling…' : (uploading ? `Uploading image… (${uploadProgress}%)` : 'Schedule Pin')}
                 </Button>
@@ -1508,7 +1685,16 @@ function buildTimeSlots() {
             </div>
           </Paper>
 
-          <Paper elevation={3} className="col-span-3 p-4">
+
+          <Paper
+            elevation={1}
+            sx={{ borderRadius: 2 }}
+            className="col-span-3 p-4"
+            style={{
+              height: "100%",
+              overflowY: "auto"
+            }}
+          >
             <Typography variant="h6" className="mb-4">Pin Status — {selectedDate ? selectedDate.toDateString() : ''}</Typography>
             <div className="space-y-3 pin-status-container">
               {pinsLoading && <div className="text-gray-500">Loading pins…</div>}
