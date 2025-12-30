@@ -201,7 +201,7 @@ function buildTimeSlots() {
 
     // Fetch boards (from backend) on mount
     useEffect(() => {
-      if (!isConnected) {
+      if (!isConnected || !selectedAccountId) {
         setBoards([]);
         setBoardsLoading(false);
         return;
@@ -276,7 +276,7 @@ function buildTimeSlots() {
       return () => {
         cancelled = true;
       };
-    }, [isConnected]);
+    }, [isConnected, selectedAccountId]);
 
 
     // Fetch scheduled pins for selected date (re-runs when selectedDate OR refreshKey changes)
@@ -289,28 +289,6 @@ function buildTimeSlots() {
     }, [selectedDate, refreshKey, isConnected]);
 
 
-    useEffect(() => {
-      if (!isConnected) return;
-
-      fetch(`${BACKEND}/drafts`, {
-        credentials: "include",
-        headers: {
-          "X-Account-ID": selectedAccountId
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            setDrafts(data);
-          }
-        })
-        .catch(err => {
-          console.error("Drafts fetch failed:", err);
-        });
-    }, [isConnected]);
-
-
-   
    
     // Re-evaluate posted state regularly so UI flips Scheduled -> Posted and ordering updates automatically
     useEffect(() => {
@@ -1405,7 +1383,16 @@ function buildTimeSlots() {
               <FormControl size="small" style={{ minWidth: 220 }}>
                 <Select
                   value={selectedAccountId || ""}
-                  onChange={(e) => setSelectedAccountId(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    if (value === "__add_account__") {
+                      window.location.href = `${BACKEND.replace(/\/$/, "")}/login`;
+                      return;
+                    }
+
+                    setSelectedAccountId(value);
+                  }}
                   displayEmpty
                   disabled={accountsLoading || !isConnected}
                 >
@@ -1414,8 +1401,8 @@ function buildTimeSlots() {
                   </MenuItem>
 
                   {accounts.map(acc => (
-                    <MenuItem key={acc.account_id} value={acc.account_id}>
-                      {acc.username}
+                    <MenuItem key={acc.id} value={acc.id}>
+                      {acc.name}
                     </MenuItem>
                   ))}
                   {/* ✅ ADD THIS — IT DOES NOT EXIST YET */}
