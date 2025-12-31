@@ -504,11 +504,21 @@ function buildTimeSlots() {
 
     // Helper: return true if a pin should be considered posted (scheduled time in the past)
     function isPinPosted(pin) {
-      if (pin.status && (pin.status === 'posted' || pin.status === 'published' || pin.status === 'completed')) return true
-      const dt = pin._scheduled_at_date || (pin._scheduled_at_iso ? new Date(pin._scheduled_at_iso) : null)
+      // ✅ backend truth ALWAYS wins
+      if (pin.status === "posted") return true
+      if (pin.status === "failed") return false
+      if (pin.status === "posting") return false
+      if (pin.status === "scheduled") return false
+
+      // ⛑ fallback only for legacy pins (no status)
+      const dt =
+        pin._scheduled_at_date ||
+        (pin._scheduled_at_iso ? new Date(pin._scheduled_at_iso) : null)
+
       if (!dt) return false
       return dt.getTime() <= Date.now()
     }
+
 
 
     // ---------------- helper: counts for a calendar date ----------------
@@ -1054,6 +1064,7 @@ function buildTimeSlots() {
         id: clientId,
         _local_key: localKey,
         client_id: clientId,
+        account_id: selectedAccountId,
         title: payload.title || "",
         description: payload.description || "",
         link: payload.link || "",
@@ -1130,16 +1141,10 @@ function buildTimeSlots() {
             id: body.scheduled_pin_id,
             client_id: body.client_id || clientId,
             status: "posted",
-            
-            
-            image_url: body.image_url || optimisticItem.image_url,
-            
-            
+            image_url: body.image_url || optimisticItem.image_url,            
             scheduled_at: body.scheduled_at || optimisticItem.scheduled_at,
             _scheduled_at_iso: body.scheduled_at || optimisticItem._scheduled_at_iso,
             _scheduled_at_date: postedDate,
-            
-            
             board_name: optimisticItem.board_name,
             _is_posted: true,
             
@@ -1162,7 +1167,7 @@ function buildTimeSlots() {
               [dayKey]: mergeAndDedupePins([serverItem, ...cleaned]),
             };
           });
-
+          setRefreshKey(k => k + 1);
           resetForm();
         } else {
           //setRefreshKey(k => k + 1); demo
@@ -1751,7 +1756,13 @@ function buildTimeSlots() {
                       {/* Right-side: status badge */}
                       <div className="ml-3 text-right flex flex-col items-end">
                         <div className={`text-xs font-semibold px-2 py-1 rounded-full ${p._is_posted ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {p._is_posted ? 'Posted' : 'Scheduled'}
+                          {
+                            p.status === "posting"
+                              ? "Posting…"
+                              : p._is_posted
+                                ? "Posted"
+                                : "Scheduled"
+                          }
                         </div>
                       </div>
                     </div>
