@@ -167,7 +167,7 @@ function buildTimeSlots() {
 
           // ✅ auto-select first account (important)
           if (!selectedAccountId && data.length > 0) {
-            setSelectedAccountId(data[0].account_id)
+            setSelectedAccountId(data[0].id)
           }
         })
         .catch(err => {
@@ -212,9 +212,6 @@ function buildTimeSlots() {
 
       fetch(`${BACKEND}/boards`, {
         credentials: "include",
-        headers: {
-          "X-Account-ID": selectedAccountId
-        }
       })
         .then(async res => {
           if (res.status === 401) {
@@ -249,9 +246,6 @@ function buildTimeSlots() {
           // =========================
           fetch(`${BACKEND}/drafts`, {
             credentials: "include",
-            headers: {
-              "X-Account-ID": selectedAccountId
-            }
           })
             .then(res => res.json())
             .then(draftsData => {
@@ -683,15 +677,9 @@ function buildTimeSlots() {
       await fetch(`${BACKEND}/drafts/${id}/duplicate`, {
         method: "POST",
         credentials: "include",
-        headers: {
-          "X-Account-ID": selectedAccountId
-        }
       })
       const res = await fetch(`${BACKEND}/drafts`, {
         credentials: "include",
-        headers: {
-          "X-Account-ID": selectedAccountId
-        }
       })
       setDrafts(await res.json())
     }
@@ -700,9 +688,6 @@ function buildTimeSlots() {
       await fetch(`${BACKEND}/drafts/${id}`, {
         method: "DELETE",
         credentials: "include",
-        headers: {
-          "X-Account-ID": selectedAccountId
-        }
       })
       setDrafts(drafts.filter(d => d.id !== id))
     }
@@ -857,7 +842,6 @@ function buildTimeSlots() {
         await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest()
           xhr.open('POST', uploadUrl)
-          xhr.setRequestHeader("X-Account-ID", selectedAccountId)
           xhr.responseType = 'json'
           xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
@@ -992,7 +976,6 @@ function buildTimeSlots() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            "X-Account-ID": selectedAccountId
           },
           body: JSON.stringify({
             client_id: clientId,
@@ -1107,7 +1090,6 @@ function buildTimeSlots() {
           credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            "X-Account-ID": selectedAccountId
           },
           body: JSON.stringify({
             client_id: clientId,
@@ -1394,7 +1376,7 @@ function buildTimeSlots() {
               <FormControl size="small" style={{ minWidth: 220 }}>
                 <Select
                   value={selectedAccountId || ""}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const value = e.target.value;
 
                     if (value === "__add_account__") {
@@ -1402,7 +1384,22 @@ function buildTimeSlots() {
                       return;
                     }
 
-                    setSelectedAccountId(value);
+                    try {
+                      // 🔥 FIX 4: tell backend which account is now active
+                      await fetch(`${BACKEND}/accounts/switch`, {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ account_id: value }),
+                      });
+
+                      // now safely update frontend state
+                      setSelectedAccountId(value);
+                    } catch (err) {
+                      console.error("Account switch failed:", err);
+                    }
                   }}
                   displayEmpty
                   disabled={accountsLoading || !isConnected}
@@ -1412,8 +1409,8 @@ function buildTimeSlots() {
                   </MenuItem>
 
                   {accounts.map(acc => (
-                    <MenuItem key={acc.account_id} value={acc.account_id}>
-                      {acc.username}
+                    <MenuItem key={acc.id} value={acc.id}>
+                      {acc.name}
                     </MenuItem>
                   ))}
                   {/* ✅ ADD THIS — IT DOES NOT EXIST YET */}
@@ -1616,7 +1613,6 @@ function buildTimeSlots() {
                       credentials: "include",
                       headers: {
                         "Content-Type": "application/json",
-                        "X-Account-ID": selectedAccountId
                       },
                       body: JSON.stringify({
                         ...form,
