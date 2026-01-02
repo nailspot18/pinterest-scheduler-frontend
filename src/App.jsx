@@ -161,15 +161,18 @@ function buildTimeSlots() {
         .then(res => res.json())
         .then(data => {
           if (cancelled) return
-          if (!Array.isArray(data)) return
+          if (!data || !Array.isArray(data.accounts)) return
 
-          setAccounts(data)
+          setAccounts(data.accounts)
 
-          // ✅ auto-select first account (important)
-          if (!selectedAccountId && data.length > 0) {
-            setSelectedAccountId(data[0].id)
+          // 🔥 restore active account from backend session
+          if (data.active_account_id) {
+            setSelectedAccountId(data.active_account_id)
+          } else if (!selectedAccountId && data.accounts.length > 0) {
+            setSelectedAccountId(data.accounts[0].id)
           }
         })
+
         .catch(err => {
           console.error("Accounts fetch failed", err)
           if (!cancelled) setAccounts([])
