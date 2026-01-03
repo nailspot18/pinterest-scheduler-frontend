@@ -148,8 +148,8 @@ function buildTimeSlots() {
 
     // ===== FETCH CONNECTED ACCOUNTS =====
     useEffect(() => {
+      // 🔒 If not connected yet, just wait — DO NOT clear state
       if (!isConnected) return
-      
 
       let cancelled = false
       setAccountsLoading(true)
@@ -162,17 +162,15 @@ function buildTimeSlots() {
 
           setAccounts(data.accounts)
 
-          // 🔥 restore active account from backend session
+          // ✅ RESTORE active account ONLY from backend session
           if (data.active_account_id) {
             setSelectedAccountId(data.active_account_id)
-          } else if (!selectedAccountId && data.accounts.length > 0) {
-            setSelectedAccountId(data.accounts[0].id)
           }
+          // ❌ DO NOT auto-pick first account
         })
-
         .catch(err => {
           console.error("Accounts fetch failed", err)
-          if (!cancelled) setAccounts([])
+          // ❌ do NOT clear accounts here either
         })
         .finally(() => {
           if (!cancelled) setAccountsLoading(false)
@@ -180,6 +178,7 @@ function buildTimeSlots() {
 
       return () => { cancelled = true }
     }, [isConnected])
+
 
     
     // ===== HARD RESET ON ACCOUNT SWITCH =====
