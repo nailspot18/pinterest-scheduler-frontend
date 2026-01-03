@@ -148,11 +148,8 @@ function buildTimeSlots() {
 
     // ===== FETCH CONNECTED ACCOUNTS =====
     useEffect(() => {
-      if (!isConnected) {
-        setAccounts([])
-        setSelectedAccountId(null)
-        return
-      }
+      if (!isConnected) return
+      
 
       let cancelled = false
       setAccountsLoading(true)
