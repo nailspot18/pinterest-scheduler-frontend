@@ -1166,11 +1166,26 @@ function buildTimeSlots() {
               [dayKey]: mergeAndDedupePins([serverItem, ...cleaned]),
             };
           });
+           // ✅ HARD REPLACE optimistic pin EVERYWHERE (THIS FIXES THE BUG)
+          setDatePinCache(prev => {
+            const updated = { ...prev };
+
+            Object.keys(updated).forEach(key => {
+              updated[key] = (updated[key] || []).map(p =>
+                p._local_key === localKey || p.client_id === clientId
+                  ? serverItem
+                  : p
+              );
+            });
+
+            return updated;
+          });
+
           setRefreshKey(k => k + 1);
           resetForm();
-        } else {
-          //setRefreshKey(k => k + 1); demo
         }
+          
+          
 
       } catch (e) {
         console.warn("post_now API call failed (optimistic UI used)", e);
