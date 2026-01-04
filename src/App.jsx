@@ -1134,7 +1134,11 @@ function buildTimeSlots() {
               [body.scheduled_pin_id]: preview
             };
           });
+
+
           const postedDate = new Date(body.scheduled_at || isoNow);
+
+
           const serverItem = {
             ...optimisticItem,
             id: body.scheduled_pin_id,
@@ -1149,24 +1153,7 @@ function buildTimeSlots() {
             
           };
 
-          const dayKey = (serverItem._scheduled_at_iso || isoNow).split("T")[0];
-
-          setDatePinCache(prev => {
-            const existing = prev[dayKey] || [];
-
-            const cleaned = existing.filter(
-              p =>
-                p._local_key !== localKey &&
-                p.client_id !== serverItem.client_id &&
-                p.id !== serverItem.id
-            );
-
-            return {
-              ...prev,
-              [dayKey]: mergeAndDedupePins([serverItem, ...cleaned]),
-            };
-          });
-           // ✅ HARD REPLACE optimistic pin EVERYWHERE (THIS FIXES THE BUG)
+          
           setDatePinCache(prev => {
             const updated = { ...prev };
 
