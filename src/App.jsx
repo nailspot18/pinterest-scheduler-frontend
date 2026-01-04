@@ -299,7 +299,6 @@ function buildTimeSlots() {
 
             const updatedPins = pinsForDay
               .map(p => {
-                const posted = isPinPosted(p)
                 const display_pin_count =
                   typeof p.pin_count !== "undefined"
                     ? p.pin_count
@@ -307,7 +306,6 @@ function buildTimeSlots() {
 
                 return {
                   ...p,
-                  _is_posted: posted,
                   display_pin_count
                 }
               })
@@ -1759,7 +1757,7 @@ function buildTimeSlots() {
                           {
                             p.status === "posting"
                               ? "Posting…"
-                              : p._is_posted
+                              : p.status === "posted"
                                 ? "Posted"
                                 : "Scheduled"
                           }
