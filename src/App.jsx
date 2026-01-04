@@ -299,6 +299,11 @@ function buildTimeSlots() {
 
             const updatedPins = pinsForDay
               .map(p => {
+                // 🔒 NEVER TOUCH POSTED OR POSTING PINS
+                if (p.status === "posted" || p.status === "posting") {
+                  return p
+                }
+
                 const display_pin_count =
                   typeof p.pin_count !== "undefined"
                     ? p.pin_count
@@ -639,11 +644,32 @@ function buildTimeSlots() {
         // Use id when available; fall back to _local_key or generated key
         // attach board_name using existing boards list
         const boardMap = new Map((boards || []).map(b => [b.id, b.name || b.title || b.name]))
-        const merged = mergeAndDedupePins(serverList).map(p => {
+        
+        
+        const prevForDay = datePinCache[datePrefix] || []
+
+        const merged = mergeAndDedupePins([
+          ...serverList.map(p => {
+            const prev = prevForDay.find(
+              x => x.id === p.id || x.client_id === p.client_id
+            )
+
+            // 🔥 PROTECT POSTED STATE
+            return prev?.status === "posted"
+              ? prev
+              : p
+          })
+        ]).map(p => {
           const bname =
-            p.board_name || p.board || (p.board_id ? boardMap.get(p.board_id) : undefined) || (p.owner && p.owner.username)
-          return { ...p, board_name: bname }
+            p.board_name ||
+            (p.board_id ? boardMap.get(p.board_id) : undefined)
+
+          return {
+            ...p,
+            board_name: bname
+          }
         })
+
 
 
         // 4) set pins state STRICTLY to merged list (no carryover)
