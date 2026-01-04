@@ -592,9 +592,14 @@ function buildTimeSlots() {
                 (p.client_id && x.client_id === p.client_id)
             )
 
-            // 🔒 HARD LOCK: never downgrade a posted pin
-            if (prev?.status === "posted") {
-              return prev
+            // 🔥 SERVER STATUS ALWAYS WINS
+            if (p.status === "posted") {
+              return {
+                ...prev,
+                ...p,
+                status: "posted",
+                _is_posted: true,
+              }
             }
 
             const bname =
@@ -1067,7 +1072,6 @@ function buildTimeSlots() {
       }))
 
 
-      resetForm();
       try {
         const res = await fetch(`${BACKEND}/post_now`, {
           method: "POST",
