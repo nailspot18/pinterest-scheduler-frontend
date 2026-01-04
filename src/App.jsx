@@ -284,58 +284,6 @@ function buildTimeSlots() {
 
    
     // Re-evaluate posted state regularly so UI flips Scheduled -> Posted and ordering updates automatically
-    useEffect(() => {
-      const tick = () => {
-        setDatePinCache(prev => {
-          if (!prev || typeof prev !== "object") return prev
-
-          const updatedCache = {}
-
-          Object.entries(prev).forEach(([dateKey, pinsForDay]) => {
-            if (!Array.isArray(pinsForDay)) {
-              updatedCache[dateKey] = pinsForDay
-              return
-            }
-
-            const updatedPins = pinsForDay
-              .map(p => {
-                // 🔒 NEVER TOUCH POSTED OR POSTING PINS
-                if (p.status === "posted" || p.status === "posting") {
-                  return p
-                }
-
-                const display_pin_count =
-                  typeof p.pin_count !== "undefined"
-                    ? p.pin_count
-                    : (p.display_pin_count || 0)
-
-                return {
-                  ...p,
-                  display_pin_count
-                }
-              })
-              .sort((a, b) => {
-                const ta = a._scheduled_at_date
-                  ? a._scheduled_at_date.getTime()
-                  : Number.POSITIVE_INFINITY
-                const tb = b._scheduled_at_date
-                  ? b._scheduled_at_date.getTime()
-                  : Number.POSITIVE_INFINITY
-                return ta - tb
-              })
-
-            updatedCache[dateKey] = updatedPins
-          })
-
-          return updatedCache
-        })
-      }
-
-      tick() // initial run
-      const id = setInterval(tick, 10000)
-      return () => clearInterval(id)
-    }, [])
-
 
     // Ensure selectedTime remains valid when selectedDate changes (or when time passes)
     useEffect(() => {
@@ -504,22 +452,10 @@ function buildTimeSlots() {
     }
     
 
-    // Helper: return true if a pin should be considered posted (scheduled time in the past)
     function isPinPosted(pin) {
-      // ✅ backend truth ALWAYS wins
-      if (pin.status === "posted") return true
-      if (pin.status === "failed") return false
-      if (pin.status === "posting") return false
-      if (pin.status === "scheduled") return false
-
-      // ⛑ fallback only for legacy pins (no status)
-      const dt =
-        pin._scheduled_at_date ||
-        (pin._scheduled_at_iso ? new Date(pin._scheduled_at_iso) : null)
-
-      if (!dt) return false
-      return dt.getTime() <= Date.now()
+      return pin?.status === "posted"
     }
+
 
 
 
@@ -648,18 +584,21 @@ function buildTimeSlots() {
         
         const prevForDay = datePinCache[datePrefix] || []
 
-        const merged = mergeAndDedupePins([
-          ...serverList.map(p => {
-            const prev = prevForDay.find(
-              x => x.id === p.id || x.client_id === p.client_id
-            )
+        const merged = mergeAndDedupePins(
+          serverList.map(p => {
+            const bname =
+              p.board_name ||
+              (p.board_id ? boardMap.get(p.board_id) : undefined)
 
-            // 🔥 PROTECT POSTED STATE
-            return prev?.status === "posted"
-              ? prev
-              : p
+            return {
+              ...p,
+              board_name: bname,
+              _scheduled_at_date: parseServerDate(p.scheduled_at),
+            }
           })
-        ]).map(p => {
+        )
+
+        .map(p => {
           const bname =
             p.board_name ||
             (p.board_id ? boardMap.get(p.board_id) : undefined)
@@ -1191,7 +1130,7 @@ function buildTimeSlots() {
             return updated;
           });
 
-          setRefreshKey(k => k + 1);
+          
           resetForm();
         }
           
