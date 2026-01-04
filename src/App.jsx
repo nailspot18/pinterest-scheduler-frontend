@@ -1060,7 +1060,6 @@ function buildTimeSlots() {
       const boardMap = new Map(boards.map(b => [b.id, b.name]));
 
       const optimisticItem = {
-        id: clientId,
         _local_key: localKey,
         client_id: clientId,
         account_id: selectedAccountId,
@@ -1080,6 +1079,7 @@ function buildTimeSlots() {
         _is_posted: false,
         display_pin_count: typeof payload.pin_count !== "undefined" ? payload.pin_count : 0,
       };
+
 
       // ---- optimistic UI update ----
       const dayKey = isoNow.split("T")[0];
