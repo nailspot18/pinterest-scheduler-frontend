@@ -953,7 +953,6 @@ function buildTimeSlots() {
       const boardMap = new Map(boards.map(b => [b.id, b.name]));
 
       const optimisticItem = {
-        id: clientId,
         client_id: clientId,
         title: payload.title || "",
         description: payload.description || "",
