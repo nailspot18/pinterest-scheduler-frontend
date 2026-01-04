@@ -586,6 +586,17 @@ function buildTimeSlots() {
 
         const merged = mergeAndDedupePins(
           serverList.map(p => {
+            const prev = prevForDay.find(
+              x =>
+                (p.id && x.id === p.id) ||
+                (p.client_id && x.client_id === p.client_id)
+            )
+
+            // 🔒 HARD LOCK: never downgrade a posted pin
+            if (prev?.status === "posted") {
+              return prev
+            }
+
             const bname =
               p.board_name ||
               (p.board_id ? boardMap.get(p.board_id) : undefined)
@@ -1110,7 +1121,7 @@ function buildTimeSlots() {
             scheduled_at: body.scheduled_at || optimisticItem.scheduled_at,
             _scheduled_at_iso: body.scheduled_at || optimisticItem._scheduled_at_iso,
             _scheduled_at_date: postedDate,
-            board_name: optimisticItem.board_name,
+            board_name: optimisticItem.board_name || boardMap.get(payload.board_id),
             _is_posted: true,
             
           };
