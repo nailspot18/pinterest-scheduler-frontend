@@ -1054,8 +1054,8 @@ function buildTimeSlots() {
         scheduled_at: isoNow,
         _scheduled_at_iso: isoNow,
         _scheduled_at_date: now,
-        status: "posting",
-        _is_posted: false,
+        status: "posted",
+        _is_posted: true,
         display_pin_count: typeof payload.pin_count !== "undefined" ? payload.pin_count : 0,
       };
 
@@ -1735,11 +1735,9 @@ function buildTimeSlots() {
                       <div className="ml-3 text-right flex flex-col items-end">
                         <div className={`text-xs font-semibold px-2 py-1 rounded-full ${p._is_posted ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                           {
-                            p.status === "posting"
-                              ? "Posting…"
-                              : p.status === "posted"
-                                ? "Posted"
-                                : "Scheduled"
+                            p.status === "posted"
+                              ? "Posted"
+                              : "Scheduled"
                           }
                         </div>
                       </div>
