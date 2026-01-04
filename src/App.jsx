@@ -965,6 +965,7 @@ function buildTimeSlots() {
             description: payload.description,
             link: payload.link,
             board_id: payload.board_id,
+            board_name: boardMap.get(payload.board_id),
             image_url: payload.image_url,
             scheduled_at: scheduledAt,
           }),
@@ -1080,6 +1081,7 @@ function buildTimeSlots() {
             description: payload.description,
             link: payload.link,
             board_id: payload.board_id,
+            board_name: boardMap.get(payload.board_id),
             image_url: payload.image_url,
           }),
         });
@@ -1127,19 +1129,17 @@ function buildTimeSlots() {
           };
 
           
-          setDatePinCache(prev => {
-            const updated = { ...prev };
+          const dayKey = isoNow.split("T")[0];
 
-            Object.keys(updated).forEach(key => {
-              updated[key] = (updated[key] || []).map(p =>
-                p._local_key === localKey || p.client_id === clientId
-                  ? serverItem
-                  : p
-              );
-            });
-
-            return updated;
-          });
+          setDatePinCache(prev => ({
+            ...prev,
+            [dayKey]: mergeAndDedupePins([
+              serverItem,
+              ...(prev[dayKey] || []).filter(
+                p => p.client_id !== clientId && p._local_key !== localKey
+              )
+            ])
+          }));
 
           
           resetForm();
