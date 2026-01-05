@@ -1507,7 +1507,7 @@ function buildTimeSlots() {
                           src={localPreview ?? form.image_url}
                           alt={form.title || 'Selected pin image'}
                           style={{
-                            width: 90,
+                            width: 100,
                             height: 170,
                             objectFit: 'cover',
                             borderRadius: 6
