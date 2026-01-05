@@ -1691,6 +1691,18 @@ function buildTimeSlots() {
                 >
                   {submitting ? 'Scheduling…' : (uploading ? `Uploading image… (${uploadProgress}%)` : 'Schedule Pin')}
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => {
+                    setEditingDraftId(null); // exit draft edit mode
+                    resetForm();             // 🔥 clears everything
+                  }}
+                >
+                  Clear
+                </Button>
               </div>
             </div>
           </Paper>
