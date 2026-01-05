@@ -1039,6 +1039,7 @@ function buildTimeSlots() {
       const boardMap = new Map(boards.map(b => [b.id, b.name]));
 
       const optimisticItem = {
+        id: clientId,
         _local_key: localKey,
         client_id: clientId,
         account_id: selectedAccountId,
@@ -1063,13 +1064,18 @@ function buildTimeSlots() {
       // ---- optimistic UI update ----
       const dayKey = isoNow.split("T")[0];
 
-      setDatePinCache(prev => ({
-        ...prev,
-        [dayKey]: mergeAndDedupePins([
-          optimisticItem,
-          ...(prev[dayKey] || [])
-        ])
-      }))
+      setDatePinCache(prev => {
+        const prevForDay = prev?.[dayKey] || [];
+
+        return {
+          ...(prev || {}),
+          [dayKey]: mergeAndDedupePins([
+            optimisticItem,
+            ...prevForDay
+          ])
+        };
+      });
+
 
 
       try {
