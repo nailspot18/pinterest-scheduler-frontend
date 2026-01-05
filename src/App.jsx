@@ -1298,7 +1298,13 @@ function buildTimeSlots() {
                           <img
                             src={d.image_url}
                             alt=""
-                            className="w-66 h-100 object-cover rounded"
+                            style={{
+                              width: 66,
+                              height: 100,
+                              objectFit: "cover",
+                              borderRadius: 6,
+                              backgroundColor: "#f3f4f6"
+                            }}
                           />
                         )}
                         <div className="truncate text-sm font-medium">
