@@ -180,6 +180,23 @@ function buildTimeSlots() {
     }, [isConnected])
 
 
+
+    useEffect(() => {
+      function handleClickOutside() {
+        setActiveDraftMenu(null);
+      }
+
+      if (activeDraftMenu !== null) {
+        document.addEventListener("click", handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener("click", handleClickOutside);
+      };
+    }, [activeDraftMenu]);
+
+
+
     
     // ===== HARD RESET ON ACCOUNT SWITCH =====
     useEffect(() => {
@@ -1281,7 +1298,7 @@ function buildTimeSlots() {
                           <img
                             src={d.image_url}
                             alt=""
-                            className="w-10 h-10 object-cover rounded"
+                            className="w-66 h-100 object-cover rounded"
                           />
                         )}
                         <div className="truncate text-sm font-medium">
@@ -1292,17 +1309,21 @@ function buildTimeSlots() {
                       {/* ⋮ menu button */}
                       <IconButton
                         size="small"
-                        onClick={e => {
-                          e.stopPropagation()
-                          setActiveDraftMenu(d.id)
+                        onClick={(e) => {
+                          e.stopPropagation(); 
+                          setActiveDraftMenu(d.id);
                         }}
                       >
                         ⋮
                       </IconButton>
 
+
                       {/* Menu */}
                       {activeDraftMenu === d.id && (
-                        <div className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md">
+                        <div
+                          className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             onClick={e => {
                               e.stopPropagation()
@@ -1480,8 +1501,8 @@ function buildTimeSlots() {
                           src={localPreview ?? form.image_url}
                           alt={form.title || 'Selected pin image'}
                           style={{
-                            width: 120,
-                            height: 120,
+                            width: 90,
+                            height: 170,
                             objectFit: 'cover',
                             borderRadius: 6
                           }}
