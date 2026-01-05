@@ -74,6 +74,7 @@ function buildTimeSlots() {
     const [drafts, setDrafts] = useState([])
     const [activeDraftMenu, setActiveDraftMenu] = useState(null)
     const [editingDraftId, setEditingDraftId] = useState(null)
+    const [editingScheduledPin, setEditingScheduledPin] = useState(null)
     // ===== ACCOUNT SWITCHER STATE =====
     const [accounts, setAccounts] = useState([])
     const [selectedAccountId, setSelectedAccountId] = useState(null)
@@ -698,6 +699,86 @@ function buildTimeSlots() {
     }
 
 
+    async function deleteScheduledPin(pin) {
+      if (!pin?.id) return;
+
+      const dayKey =
+        pin._scheduled_at_iso?.split("T")[0] ||
+        pin.scheduled_at?.split("T")[0];
+
+      try {
+        const res = await fetch(`${BACKEND}/scheduled/${pin.id}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          console.warn("Failed to delete scheduled pin");
+          return;
+        }
+
+        // 🔥 Remove pin instantly from UI
+        setDatePinCache(prev => ({
+          ...prev,
+          [dayKey]: (prev[dayKey] || []).filter(p => p.id !== pin.id)
+        }));
+      } catch (e) {
+        console.error("Delete scheduled pin failed", e);
+      }
+    }
+
+
+
+   function editScheduledPin(pin) {
+      if (!pin) return;
+
+      // 1️⃣ Remove pin from Pin Status UI immediately
+      const dayKey =
+        pin._scheduled_at_iso?.split("T")[0] ||
+        pin.scheduled_at?.split("T")[0];
+
+      setDatePinCache(prev => ({
+        ...prev,
+        [dayKey]: (prev[dayKey] || []).filter(p => p.id !== pin.id)
+      }));
+
+      // 2️⃣ Populate form fields
+      setForm({
+        title: pin.title || "",
+        description: pin.description || "",
+        link: pin.link || "",
+        board_id: pin.board_id || "",
+        image_url: pin.image_url || ""
+      });
+
+      // 3️⃣ Restore date + time (IST-friendly)
+      const dt =
+        pin._scheduled_at_date ||
+        parseServerDate(pin.scheduled_at);
+
+      if (dt) {
+        setSelectedDate(new Date(
+          dt.getFullYear(),
+          dt.getMonth(),
+          dt.getDate()
+        ));
+
+        const hours = dt.getHours();
+        const minutes = dt.getMinutes();
+        const ampm = hours >= 12 ? "PM" : "AM";
+        const h12 = hours % 12 === 0 ? 12 : hours % 12;
+        setSelectedTime(`${h12}:${String(minutes).padStart(2, "0")} ${ampm}`);
+      }
+
+      // 4️⃣ Mark this pin as being edited
+      setEditingScheduledPin(pin);
+
+      // ❌ ensure draft mode is OFF
+      setEditingDraftId(null);
+    }
+ 
+
+
     // ------------------ END REPLACEMENT ------------------
 
    // Helper: normalize, dedupe, sort, and annotate pins
@@ -982,7 +1063,8 @@ function buildTimeSlots() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            client_id: clientId,
+            draft_id: editingDraftId,
+            scheduled_pin_id: editingScheduledPin?.id || null, // 🔥 KEY
             title: payload.title,
             description: payload.description,
             link: payload.link,
@@ -1002,6 +1084,17 @@ function buildTimeSlots() {
         const body = await res.json();
 
         if (body?.scheduled_pin_id) {
+          // 🔥 REMOVE draft from drafts list
+          if (editingDraftId) {
+            setDrafts(prev => prev.filter(d => d.id !== editingDraftId))
+            setEditingDraftId(null)
+          }
+          if (editingScheduledPin) {
+            setEditingScheduledPin(null)
+          }
+
+
+
           // 🔥 MOVE preview from clientId → server id
           setPinPreviews(prev => {
             if (!prev[clientId]) return prev;
@@ -1103,6 +1196,7 @@ function buildTimeSlots() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            draft_id: editingDraftId,
             client_id: clientId,
             title: payload.title,
             description: payload.description,
@@ -1128,6 +1222,12 @@ function buildTimeSlots() {
         const body = await res.json();
 
         if (body && body.ok && body.scheduled_pin_id) {
+          // 🔥 REMOVE draft from drafts list
+          if (editingDraftId) {
+            setDrafts(prev => prev.filter(d => d.id !== editingDraftId))
+            setEditingDraftId(null)
+          }
+
           setPinPreviews(prev => {
             if (!prev[clientId]) return prev;
             const { [clientId]: preview, ...rest } = prev;
@@ -1777,14 +1877,35 @@ function buildTimeSlots() {
                       </div>
 
                       {/* Right-side: status badge */}
-                      <div className="ml-3 text-right flex flex-col items-end">
-                        <div className={`text-xs font-semibold px-2 py-1 rounded-full ${p._is_posted ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {
-                            p.status === "posted"
-                              ? "Posted"
-                              : "Scheduled"
-                          }
+                      <div className="ml-3 text-right flex flex-col items-end gap-2">
+                        <div
+                          className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                            p._is_posted
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {p.status === "posted" ? "Posted" : "Scheduled"}
                         </div>
+
+                        {/* 🔥 DELETE BUTTON — ONLY FOR SCHEDULED */}
+                        {p.status === "scheduled" && (
+                          <>
+                            <button
+                              onClick={() => editScheduledPin(p)}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => deleteScheduledPin(p)}
+                              className="text-xs text-red-600 hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
 
