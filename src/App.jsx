@@ -31,7 +31,7 @@ function generateDays() {
 function buildTimeSlots() {
   const slots = []
   for (let h = 0; h < 24; h++) {
-    for (let m of [0, 30]) {
+    for (let m = 0; m < 60; m++) {                // later chane it to 30 min >>>>>>>       for (let m of [0, 30]) {        <<<<<<<<<<
       const hour = h % 12 === 0 ? 12 : h % 12
       const ampm = h < 12 ? 'AM' : 'PM'
       slots.push(`${hour}:${String(m).padStart(2,'0')} ${ampm}`)
@@ -1889,7 +1889,7 @@ function buildTimeSlots() {
                         </div>
 
                         {/* 🔥 DELETE BUTTON — ONLY FOR SCHEDULED */}
-                        {p.status === "scheduled" && (
+                        {!p._is_posted && (
                           <>
                             <button
                               onClick={() => editScheduledPin(p)}
