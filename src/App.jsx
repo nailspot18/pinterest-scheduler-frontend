@@ -336,15 +336,29 @@ function buildTimeSlots() {
     
     // Convert selected date + time string ("12:00 PM") -> UTC ISO string
     function toISO(date, timeStr) {
-      const [time, ampm] = timeStr.split(' ')
-      let [h, m] = time.split(':').map(Number)
-      if (ampm === 'PM' && h !== 12) h += 12
-      if (ampm === 'AM' && h === 12) h = 0
-      // construct a Date in the local timezone then return ISO (UTC)
-      const d = new Date(date)
-      d.setHours(h, m, 0, 0)
-      return d.toISOString()
+      const [time, ampm] = timeStr.split(" ");
+      let [h, m] = time.split(":").map(Number);
+
+      if (ampm === "PM" && h !== 12) h += 12;
+      if (ampm === "AM" && h === 12) h = 0;
+
+      // IMPORTANT: create local (IST) datetime
+      const d = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        h,
+        m,
+        0,
+        0
+      );
+
+      // 🔥 DO NOT convert to UTC
+      // 🔥 DO NOT append Z
+      // Backend will assume IST and convert → UTC
+      return d.toISOString().replace("Z", "");
     }
+
 
 
     // Normalize a Date (or date-like) to a Date at local midnight (so comparisons by day work)
