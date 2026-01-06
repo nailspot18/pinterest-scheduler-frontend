@@ -312,6 +312,12 @@ function buildTimeSlots() {
     }, [isConnected, selectedDate]);
 
 
+    function dayKeyFromDate(date) {
+      if (!date) return null;
+      const d = (date instanceof Date) ? date : new Date(date);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
    
     // Re-evaluate posted state regularly so UI flips Scheduled -> Posted and ordering updates automatically
 
@@ -676,33 +682,19 @@ function buildTimeSlots() {
         
         // 5) cache by the same YYYY-MM-DD key so calendar counts are exact
         try {
-          setDatePinCache(prevCache => {
-            const prevForDay = prevCache?.[datePrefix];
-
-            // 🔒 If backend returns empty but we already have pins, KEEP them
-            if (Array.isArray(merged) && merged.length === 0 && Array.isArray(prevForDay) && prevForDay.length > 0) {
-              return prevCache;
-            }
-
-            return {
-              ...(prevCache || {}),
-              [datePrefix]: merged
-            };
-          });
-
-
+          setDatePinCache(prevCache => ({
+            ...(prevCache || {}),
+            [datePrefix]: merged
+          }));
         } catch (e) {
           // non-fatal
-          console.warn('fetchScheduledForDate: failed to set cache', e)
+          console.warn('fetchScheduledForDate: failed to set cache', e);
         }
 
-        
-      } catch (err) {
-        console.error('fetchScheduledForDate failed', err)
-      } finally {
-        setPinsLoading(false)
+        } finally {
+          setPinsLoading(false);
+        }
       }
-    }
 
 
     async function duplicateDraft(id) {
@@ -728,9 +720,10 @@ function buildTimeSlots() {
     async function deleteScheduledPin(pin) {
       if (!pin?.id) return;
 
-      const dayKey =
-        pin._scheduled_at_iso?.split("T")[0] ||
-        pin.scheduled_at?.split("T")[0];
+      const dayKey = dayKeyFromDate(
+        pin._scheduled_at_date ||
+        parseServerDate(pin.scheduled_at)
+      );
 
       try {
         const res = await fetch(`${BACKEND}/scheduled/${pin.id}`, {
@@ -759,9 +752,10 @@ function buildTimeSlots() {
       if (!pin) return;
 
       // 1️⃣ Remove pin from Pin Status UI immediately
-      const dayKey =
-        pin._scheduled_at_iso?.split("T")[0] ||
-        pin.scheduled_at?.split("T")[0];
+      const dayKey = dayKeyFromDate(
+        pin._scheduled_at_date ||
+        parseServerDate(pin.scheduled_at)
+      );
 
       setDatePinCache(prev => ({
         ...prev,
@@ -842,10 +836,10 @@ function buildTimeSlots() {
 
         if (body?.scheduled_pin_id) {
           // ✅ SUCCESS → remove failed pin from UI
-          const dayKey =
-            pin._scheduled_at_iso?.split("T")[0] ||
-            pin.scheduled_at?.split("T")[0];
-
+          const dayKey = dayKeyFromDate(
+            pin._scheduled_at_date ||
+            parseServerDate(pin.scheduled_at)
+          );
           setDatePinCache(prev => ({
             ...prev,
             [dayKey]: (prev[dayKey] || []).filter(p => p.id !== failedPinId)
@@ -1105,7 +1099,14 @@ function buildTimeSlots() {
       const clientId = `local_schedule_${Date.now()}`;
       
 
-      const dayKey = scheduledAt?.split("T")[0];
+      const scheduledDateObj = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate()
+      );
+
+      const dayKey = dayKeyFromDate(scheduledDateObj);
+
 
       const boardMap = new Map(boards.map(b => [b.id, b.name]));
 
@@ -1175,17 +1176,10 @@ function buildTimeSlots() {
 
 
 
-          // 🔥 MOVE preview from clientId → server id
-          setPinPreviews(prev => {
-            if (!prev[clientId]) return prev;
-            const { [clientId]: preview, ...rest } = prev;
-            return {
-              ...rest,
-              [body.scheduled_pin_id]: preview
-            };
-          });
+          const dayKey = dayKeyFromDate(
+            parseServerDate(body.scheduled_at || scheduledAt)
+          );
 
-          const dayKey = (body.scheduled_at || scheduledAt).split("T")[0];
 
           setDatePinCache(prev => ({
             ...prev,
@@ -1252,7 +1246,8 @@ function buildTimeSlots() {
 
 
       // ---- optimistic UI update ----
-      const dayKey = isoNow.split("T")[0];
+      const dayKey = dayKeyFromDate(new Date());
+
 
       setDatePinCache(prev => {
         const prevForDay = prev?.[dayKey] || [];
@@ -1290,10 +1285,7 @@ function buildTimeSlots() {
         if (!res.ok) {
           const text = await res.text();
           console.warn("post_now API returned non-ok", res.status, text);
-          setPinPreviews(prev => {
-            const { [clientId]: _, ...rest } = prev;
-            return rest;
-          });
+          
           //setRefreshKey(k => k + 1); demo
           resetForm();
           return;
@@ -1308,14 +1300,6 @@ function buildTimeSlots() {
             setEditingDraftId(null)
           }
 
-          setPinPreviews(prev => {
-            if (!prev[clientId]) return prev;
-            const { [clientId]: preview, ...rest } = prev;
-            return {
-              ...rest,
-              [body.scheduled_pin_id]: preview
-            };
-          });
 
 
           const postedDate = new Date(body.scheduled_at || isoNow);
@@ -1336,7 +1320,10 @@ function buildTimeSlots() {
           };
 
           
-          const dayKey = isoNow.split("T")[0];
+          const dayKey = dayKeyFromDate(
+            parseServerDate(body.scheduled_at || isoNow)
+          );
+
 
           setDatePinCache(prev => ({
             ...prev,
