@@ -1777,6 +1777,10 @@ function buildTimeSlots() {
                   variant="contained"
                   color="primary"
                   onClick={() => {
+                    if (!selectedTime) {
+                      alert("Please select a time");
+                      return;
+                    }                    
                     const iso = toISO(selectedDate, selectedTime)
                     handleSchedule({
                       title: form.title,
