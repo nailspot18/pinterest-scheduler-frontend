@@ -300,6 +300,18 @@ function buildTimeSlots() {
     }, [selectedDate, refreshKey, isConnected]);
 
 
+    // 🔁 Auto-refresh pin status every 60 seconds (no page refresh needed)
+    useEffect(() => {
+      if (!isConnected || !selectedDate) return;
+
+      const interval = setInterval(() => {
+        fetchScheduledForDate(selectedDate);
+      }, 60_000); // 1 minute
+
+      return () => clearInterval(interval);
+    }, [isConnected, selectedDate]);
+
+
    
     // Re-evaluate posted state regularly so UI flips Scheduled -> Posted and ordering updates automatically
 
@@ -777,6 +789,60 @@ function buildTimeSlots() {
       setEditingDraftId(null);
     }
  
+
+    async function retryFailedPin(pin) {
+      if (!pin) return;
+
+      // schedule 1 minute in future
+      const retryDate = new Date();
+      retryDate.setMinutes(retryDate.getMinutes() + 1);
+      retryDate.setSeconds(0, 0);
+
+      const iso = retryDate.toISOString();
+      const failedPinId = pin.id;
+
+      try {
+        const res = await fetch(`${BACKEND}/schedule`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: pin.title,
+            description: pin.description,
+            link: pin.link,
+            board_id: pin.board_id,
+            board_name: pin.board_name,
+            image_url: pin.image_url,
+            scheduled_at: iso,
+          }),
+        });
+
+        if (!res.ok) {
+          console.warn("Retry failed:", await res.text());
+          return; // ❌ DO NOT delete failed pin
+        }
+
+        const body = await res.json();
+
+        if (body?.scheduled_pin_id) {
+          // ✅ SUCCESS → remove failed pin from UI
+          const dayKey =
+            pin._scheduled_at_iso?.split("T")[0] ||
+            pin.scheduled_at?.split("T")[0];
+
+          setDatePinCache(prev => ({
+            ...prev,
+            [dayKey]: (prev[dayKey] || []).filter(p => p.id !== failedPinId)
+          }));
+        }
+      } catch (err) {
+        console.error("Retry exception:", err);
+      }
+    }
+
+
 
 
     // ------------------ END REPLACEMENT ------------------
@@ -1884,16 +1950,35 @@ function buildTimeSlots() {
                       <div className="ml-3 text-right flex flex-col items-end gap-2">
                         <div
                           className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                            p._is_posted
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
+                            p.status === "posted"
+                              ? "bg-green-100 text-green-800"
+                              : p.status === "failed"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {p.status === "posted" ? "Posted" : "Scheduled"}
+                          {p.status === "posted"
+                            ? "Posted"
+                            : p.status === "failed"
+                            ? "Failed"
+                            : "Scheduled"}
                         </div>
+                        
+                        {p.status === "failed" && p.failure_reason && (
+                          <div className="text-xs text-red-600 mt-1 max-w-[180px] text-right">
+                            {p.failure_reason}
+                          </div>
+                        )}
 
                         {/* 🔥 DELETE BUTTON — ONLY FOR SCHEDULED */}
-                        {!p._is_posted && (
+                        {p.status === "failed" ? (
+                          <button
+                            onClick={() => retryFailedPin(p)}
+                            className="text-xs text-orange-600 hover:underline"
+                          >
+                            Retry
+                          </button>
+                        ) : !p._is_posted ? (
                           <>
                             <button
                               onClick={() => editScheduledPin(p)}
@@ -1909,7 +1994,7 @@ function buildTimeSlots() {
                               Delete
                             </button>
                           </>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
