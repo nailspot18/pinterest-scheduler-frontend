@@ -348,22 +348,17 @@ function buildTimeSlots() {
       if (ampm === "PM" && h !== 12) h += 12;
       if (ampm === "AM" && h === 12) h = 0;
 
-      // IMPORTANT: create local (IST) datetime
-      const d = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        h,
-        m,
-        0,
-        0
-      );
+      // 🔥 Build LOCAL datetime string (NO UTC conversion)
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const hh = String(h).padStart(2, "0");
+      const min = String(m).padStart(2, "0");
 
-      // 🔥 DO NOT convert to UTC
-      // 🔥 DO NOT append Z
-      // Backend will assume IST and convert → UTC
-      return d.toISOString().replace("Z", "");
+      // ✅ This is interpreted as IST by backend
+      return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`;
     }
+
 
 
 
