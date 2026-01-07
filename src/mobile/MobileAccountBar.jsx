@@ -34,6 +34,28 @@ export default function MobileAccountBar({
         />
       </Box>
 
+      {!isConnected && (
+        <Box
+          onClick={() => {
+            window.location.href = `${import.meta.env.VITE_BACKEND_URL}/login`;
+          }}
+          sx={{
+            mt: 1,
+            px: 2,
+            py: 1,
+            borderRadius: 2,
+            textAlign: "center",
+            fontSize: 13,
+            cursor: "pointer",
+            backgroundColor: "#1d4ed8",
+            color: "white",
+          }}
+        >
+          Connect Pinterest Account
+        </Box>
+      )}
+
+
       <Box sx={{ display: "flex", gap: 1, overflowX: "auto" }}>
         {accounts.map((acc) => (
           <Box
