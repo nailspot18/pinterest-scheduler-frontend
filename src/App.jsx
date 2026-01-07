@@ -1632,7 +1632,7 @@ function buildTimeSlots() {
                     }
                   }}
                   displayEmpty
-                  disabled={accountsLoading || !isConnected}
+                  disabled={accountsLoading || accounts.length === 0}
                   sx={{
                     color: "#e5e7eb",
                     backgroundColor: "#1f2937",

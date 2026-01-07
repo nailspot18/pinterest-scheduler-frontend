@@ -29,7 +29,7 @@ export default function MobileAccountBar({
         value={selectedAccountId || ""}
         onChange={(e) => setSelectedAccountId(e.target.value)}
         displayEmpty
-        disabled={accountsLoading || !isConnected}
+        disabled={accountsLoading || accounts.length === 0}
         sx={{
           flex: 1,
           backgroundColor: "#0f172a",
@@ -40,7 +40,7 @@ export default function MobileAccountBar({
           Select account
         </MenuItem>
 
-        {accounts.map(acc => (
+        {accounts.map((acc) => (
           <MenuItem key={acc.id} value={acc.id}>
             {acc.name}
           </MenuItem>
@@ -49,8 +49,8 @@ export default function MobileAccountBar({
 
       <Chip
         size="small"
-        label={isConnected ? "Connected" : "Not connected"}
-        color={isConnected ? "success" : "error"}
+        label={isConnected ? "Connected" : "Web connected"}
+        color={isConnected ? "success" : "default"}
         variant="outlined"
       />
     </Box>
