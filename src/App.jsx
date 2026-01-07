@@ -9,6 +9,8 @@ import CloseIcon from '@mui/icons-material/Close'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Autocomplete } from "@mui/material";
+import MobileDashboard from "./mobile/MobileDashboard";
+
 
 
 // Backend base URL (local or production via env)
@@ -97,10 +99,15 @@ function buildTimeSlots() {
     const [activeDraftMenu, setActiveDraftMenu] = useState(null)
     const [editingDraftId, setEditingDraftId] = useState(null)
     const [editingScheduledPin, setEditingScheduledPin] = useState(null)
+    const isMobile = window.innerWidth < 768;
+
+
+
     // ===== ACCOUNT SWITCHER STATE =====
     const [accounts, setAccounts] = useState([])
     const [selectedAccountId, setSelectedAccountId] = useState(null)
     const [accountsLoading, setAccountsLoading] = useState(false)
+
 
     
     const pins = useMemo(() => {
@@ -131,7 +138,8 @@ function buildTimeSlots() {
     const [isConnected, setIsConnected] = useState(false);
 
     const accountReady = Boolean(isConnected && selectedAccountId)
-    
+
+   
     useEffect(() => {
       const checkAuth = async () => {
         try {
@@ -1393,14 +1401,27 @@ function buildTimeSlots() {
             </Typography>
           </Box>
         </Box>    
-        <Box
-          className="grid grid-cols-12 gap-6"
-          style={{
-            height: "100%",
-            overflow: "hidden",
-          }}
-        >
-
+        
+          {isMobile ? (
+            <MobileDashboard
+              accounts={accounts}
+              accountsLoading={accountsLoading}
+              selectedAccountId={selectedAccountId}
+              setSelectedAccountId={setSelectedAccountId}
+              isConnected={isConnected}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              pins={filteredPins}
+              pinsLoading={pinsLoading}
+            />
+          ) : (
+            <Box
+              className="grid grid-cols-12 gap-6"
+              style={{
+                height: "100%",
+                overflow: "hidden",
+              }}
+            >
           <Paper
             elevation={1}
             sx={{ borderRadius: 2 }}
@@ -1451,7 +1472,10 @@ function buildTimeSlots() {
                   )
                 })}
               </div>
-            </div>  
+            </div>
+
+
+          
             {/* ================== DRAFTS SECTION ================== */}
               
               <div
@@ -1837,10 +1861,18 @@ function buildTimeSlots() {
                     style={{ display: 'none' }}
                   />
                 </div>           
+             
+             
               <div className="col-span-6">
                 <Typography className="mb-1">Date</Typography>
-                <TextField value={selectedDate ? selectedDate.toDateString() : ''} fullWidth InputProps={{ readOnly: true }} />
+                <TextField
+                  value={selectedDate ? selectedDate.toDateString() : ''}
+                  fullWidth
+                  InputProps={{ readOnly: true }}
+                />
               </div>
+
+
 
               <div className="col-span-6">
                 <Typography className="mb-1">Time (30-min intervals)</Typography>
@@ -2115,6 +2147,7 @@ function buildTimeSlots() {
             </div>
           </Paper>
         </Box>
+        )}
       </Container>
     </ThemeProvider>
   )
