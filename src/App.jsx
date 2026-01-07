@@ -6,6 +6,10 @@ import {
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CloseIcon from '@mui/icons-material/Close'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+import CssBaseline from '@mui/material/CssBaseline'
+import { Autocomplete } from "@mui/material";
+
 
 // Backend base URL (local or production via env)
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -31,7 +35,7 @@ function generateDays() {
 function buildTimeSlots() {
   const slots = []
   for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m++) {                // later chane it to 30 min >>>>>>>       for (let m of [0, 30]) {        <<<<<<<<<<
+    for (let m of [0, 30]) {              // later chane it to 30 min >>>>>>>       for (let m of [0, 30]) {        <<<<<<<<<<          >>>>>>>>>this is for every min   ----- for (let m = 0; m < 60; m++) {   -------<<<<<<<<
       const hour = h % 12 === 0 ? 12 : h % 12
       const ampm = h < 12 ? 'AM' : 'PM'
       slots.push(`${hour}:${String(m).padStart(2,'0')} ${ampm}`)
@@ -59,6 +63,24 @@ function buildTimeSlots() {
       hour12: true,
     });
   }
+
+  const darkTheme = createTheme({
+    palette: {
+      mode: 'dark',
+      background: {
+        default: '#0f172a',   // slate-900
+        paper: '#020617',     // near-black
+      },
+      primary: {
+        main: '#3b82f6',      // blue-500
+      },
+      secondary: {
+        main: '#22c55e',      // green-500
+      },
+    },
+  })
+
+
 
   export default function App() {     
     const [boards, setBoards] = useState([])
@@ -1357,7 +1379,13 @@ function buildTimeSlots() {
 
 
     return (
-      <Container maxWidth="xl" className="py-6" style={{ height: "100vh", overflow: "hidden" }}>
+      <ThemeProvider theme={darkTheme}>
+        <CssBaseline />
+        <Container
+          maxWidth="xl"
+          className="py-6"
+          style={{ height: "100vh", overflow: "hidden" }}
+        >
         <Box className="flex items-center justify-between mb-6">
           <Box>
             <Typography variant="h4" fontWeight={400}>
@@ -1406,7 +1434,7 @@ function buildTimeSlots() {
                       
                       
                       aria-pressed={isSelected}
-                      className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-blue-50'}`}>
+                      className={`w-full text-left p-2 rounded-md transition-colors ${isSelected ? 'bg-gray-700 text-gray-100 font-semibold': 'hover:bg-gray-800 text-gray-300'}`}>
                       <div className="font-semibold">{formatDate(d)}</div>
                       {/* Counts for this date */}
                       {(() => {
@@ -1489,7 +1517,7 @@ function buildTimeSlots() {
                       {/* Menu */}
                       {activeDraftMenu === d.id && (
                         <div
-                          className="absolute right-2 top-10 z-10 bg-white border rounded shadow-md"
+                          className="absolute right-2 top-10 z-10 bg-gray-800 border border-gray-700 rounded shadow-md"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
@@ -1532,9 +1560,9 @@ function buildTimeSlots() {
             }}
           >
 
-          <div className="mb-6 p-4 rounded-lg border border-gray-200 bg-gray-50">
+          <div className="mb-6 p-4 rounded-lg border border-gray-700 bg-gray-800">
             <div className="flex justify-between items-center mb-3">
-              <Typography variant="h6">Create / Schedule Pin</Typography>
+              <Typography variant="h6" sx={{ color: "#e5e7eb" }}> Create / Schedule Pin</Typography>
 
               <div>
               <Button
@@ -1581,6 +1609,19 @@ function buildTimeSlots() {
                   }}
                   displayEmpty
                   disabled={accountsLoading || !isConnected}
+                  sx={{
+                    color: "#e5e7eb",
+                    backgroundColor: "#1f2937",
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#374151",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#4b5563",
+                    },
+                    "&.Mui-disabled": {
+                      color: "#9ca3af",
+                    },
+                  }}
                 >
                   <MenuItem value="" disabled>
                     Select Account
@@ -1629,23 +1670,69 @@ function buildTimeSlots() {
                 onChange={e => setForm({ ...form, link: e.target.value })}
               />
 
-              <div className="col-span-6 flex items-end gap-2">
-                <FormControl fullWidth>
-                  <InputLabel id="board-select-label">Select board</InputLabel>
-                  <Select
-                    labelId="board-select-label"
-                    value={form.board_id}
-                    label="Select board"
-                    onChange={e => setForm({ ...form, board_id: e.target.value })}
-                    disabled={boardsLoading || !accountReady}
-                  >
-                    <MenuItem value="">Select</MenuItem>
-                    {boards.map(b => (
-                      <MenuItem key={b.id} value={b.id}>
-                        {b.name}
-                      </MenuItem>))}
-                  </Select>
-                </FormControl>             
+              <div className="col-span-6 flex items-end">
+                <Autocomplete
+                  fullWidth
+                  options={boards}
+                  getOptionLabel={(option) => option?.name || ""}
+                  value={boards.find(b => b.id === form.board_id) || null}
+                  onChange={(e, newValue) => {
+                    setForm(prev => ({
+                      ...prev,
+                      board_id: newValue ? newValue.id : ""
+                    }));
+                  }}
+                  loading={boardsLoading}
+                  disabled={!accountReady}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  
+                  /* 🔥 DROPDOWN HEIGHT + SMOOTH SCROLL */
+                  ListboxProps={{
+                    style: {
+                      maxHeight: 260,          // ✅ height limit
+                      overflowY: "auto",
+                      scrollBehavior: "smooth" // ✅ smooth scroll
+                    }
+                  }}
+
+                  /* 🔥 DARK THEME DROPDOWN */
+                  PaperProps={{
+                    sx: {
+                      backgroundColor: "#0f172a", // slate-900
+                      color: "#e5e7eb",
+                      border: "1px solid #1f2933",
+                      mt: 0.5
+                    }
+                  }}
+                  
+                  
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select board"
+                      placeholder="Type to search boards…"
+                      fullWidth
+                    />
+                  )}
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      backgroundColor: "#111827",
+                      color: "#e5e7eb",
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#374151",
+                    },
+                    "&:hover .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "#4b5563",
+                    },
+                    "& .MuiAutocomplete-popupIndicator": {
+                      color: "#9ca3af",
+                    },
+                    "& .MuiAutocomplete-clearIndicator": {
+                      color: "#9ca3af",
+                    },
+                  }}
+                />             
               </div>
 
               
@@ -1888,7 +1975,7 @@ function buildTimeSlots() {
               {pinsLoading && <div className="text-gray-500">Loading pins…</div>}
               {!pinsLoading && pins.length === 0 && <div className="text-gray-500">No pins scheduled</div>}
               {filteredPins.map((p, idx) => (
-                <div key={p.id || p._local_key || idx} className="p-3 bg-white rounded shadow-sm flex items-start space-x-3">
+                <div key={p.id || p._local_key || idx} className="p-3 bg-gray-800 rounded shadow-sm flex items-start space-x-3">
                   {p.image_url ? (
                     <img
                       src={normalizeRemoteUrl(p.image_url)}
@@ -1931,7 +2018,7 @@ function buildTimeSlots() {
                           Pin {p._pin_number}
                         </div>
                         {/* Title */}
-                        <div className="text-sm font-medium text-gray-900 truncate">
+                        <div className="text-sm font-medium text-gray-100 truncate">
                           {p.title || p.name || 'Untitled'}
                         </div>
 
@@ -2029,5 +2116,6 @@ function buildTimeSlots() {
           </Paper>
         </Box>
       </Container>
-    )
+    </ThemeProvider>
+  )
   }
