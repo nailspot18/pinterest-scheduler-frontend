@@ -30,6 +30,12 @@ export default function MobileAccountBar({
         onChange={(e) => setSelectedAccountId(e.target.value)}
         displayEmpty
         disabled={accountsLoading || accounts.length === 0}
+        MenuProps={{
+          disableScrollLock: true,
+          PaperProps: {
+            sx: { zIndex: 2000 }
+          }
+        }}
         sx={{
           flex: 1,
           backgroundColor: "#0f172a",
