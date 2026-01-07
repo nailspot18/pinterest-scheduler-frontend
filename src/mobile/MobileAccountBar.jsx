@@ -1,14 +1,7 @@
-import {
-  Box,
-  Typography,
-  Select,
-  MenuItem,
-  Chip,
-} from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 
 export default function MobileAccountBar({
   accounts,
-  accountsLoading,
   selectedAccountId,
   setSelectedAccountId,
   isConnected,
@@ -19,47 +12,53 @@ export default function MobileAccountBar({
         px: 2,
         py: 1.5,
         borderBottom: "1px solid #1f2937",
-        display: "flex",
-        alignItems: "center",
-        gap: 1.5,
       }}
     >
-      <Select
-        native
-        size="small"
-        value={selectedAccountId || ""}
-        onChange={(e) => setSelectedAccountId(e.target.value)}
-        displayEmpty
-        disabled={accountsLoading || accounts.length === 0}
-        MenuProps={{
-          disableScrollLock: true,
-          PaperProps: {
-            sx: { zIndex: 2000 }
-          }
-        }}
+      <Box
         sx={{
-          flex: 1,
-          backgroundColor: "#0f172a",
-          color: "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 1,
         }}
       >
-        <MenuItem value="" disabled>
-          Select account
-        </MenuItem>
+        <Typography fontSize={14} color="#9ca3af">
+          Account
+        </Typography>
 
+        <Chip
+          size="small"
+          label={isConnected ? "Connected" : "Offline"}
+          color={isConnected ? "success" : "error"}
+          variant="outlined"
+        />
+      </Box>
+
+      <Box sx={{ display: "flex", gap: 1, overflowX: "auto" }}>
         {accounts.map((acc) => (
-          <MenuItem key={acc.id} value={acc.id}>
+          <Box
+            key={acc.id}
+            onClick={() => setSelectedAccountId(acc.id)}
+            sx={{
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              fontSize: 13,
+              whiteSpace: "nowrap",
+              cursor: "pointer",
+              border: "1px solid",
+              borderColor:
+                selectedAccountId === acc.id ? "#22c55e" : "#374151",
+              backgroundColor:
+                selectedAccountId === acc.id ? "#052e16" : "#020617",
+              color:
+                selectedAccountId === acc.id ? "#22c55e" : "#e5e7eb",
+            }}
+          >
             {acc.name}
-          </MenuItem>
+          </Box>
         ))}
-      </Select>
-
-      <Chip
-        size="small"
-        label={isConnected ? "Connected" : "Web connected"}
-        color={isConnected ? "success" : "default"}
-        variant="outlined"
-      />
+      </Box>
     </Box>
   );
 }
