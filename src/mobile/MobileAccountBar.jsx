@@ -25,6 +25,7 @@ export default function MobileAccountBar({
       }}
     >
       <Select
+        native
         size="small"
         value={selectedAccountId || ""}
         onChange={(e) => setSelectedAccountId(e.target.value)}
