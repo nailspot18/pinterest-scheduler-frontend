@@ -172,30 +172,31 @@ function buildTimeSlots() {
 
 
 
-    // 🔁 STEP 3: After OAuth redirect, re-sync accounts + active account
     useEffect(() => {
-      if (!authSuccess) return;
+      const checkAuth = async () => {
+        try {
+          const res = await fetch(`${BACKEND}/auth/status`, {
+            credentials: "include",
+          });
+          const data = await res.json();
+          console.log("AUTH STATUS:", data);
+          setIsConnected(Boolean(data.connected));
+        } catch (e) {
+          console.error("Auth check failed:", e);
+          setIsConnected(false);
+        }
+      };
 
-      console.log("🔄 OAuth success detected — refetching accounts");
+      const params = new URLSearchParams(window.location.search);
 
-      fetch(`${BACKEND}/accounts`, {
-        credentials: "include",
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (!data) return;
+      if (params.get("auth") === "success") {
+        checkAuth();
+        window.history.replaceState({}, "", window.location.pathname);
+      } else {
+        checkAuth();
+      }
+    }, []);
 
-          setAccounts(data.accounts || []);
-          setSelectedAccountId(data.active_account_id || null);
-        })
-        .catch(err => {
-          console.error("Post-OAuth accounts fetch failed:", err);
-        });
-
-      // 🔥 clean the URL so this runs only once
-      setSearchParams({}, { replace: true });
-
-    }, [authSuccess]);
 
 
     function normalizeRemoteUrl(url) {
