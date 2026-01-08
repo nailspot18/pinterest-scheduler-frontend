@@ -1,7 +1,8 @@
-import { Box, Typography, Chip } from "@mui/material";
+import { Box, Typography, Chip, CircularProgress } from "@mui/material";
 
 export default function MobileAccountBar({
   accounts,
+  accountsLoading,
   selectedAccountId,
   setSelectedAccountId,
   isConnected,
@@ -14,6 +15,7 @@ export default function MobileAccountBar({
         borderBottom: "1px solid #1f2937",
       }}
     >
+      {/* Header row */}
       <Box
         sx={{
           display: "flex",
@@ -34,6 +36,7 @@ export default function MobileAccountBar({
         />
       </Box>
 
+      {/* 🔌 Not connected → show connect CTA */}
       {!isConnected && (
         <Box
           onClick={() => {
@@ -55,32 +58,70 @@ export default function MobileAccountBar({
         </Box>
       )}
 
+      {/* ⏳ Connected but loading accounts */}
+      {isConnected && accountsLoading && (
+        <Box sx={{ mt: 1, display: "flex", justifyContent: "center" }}>
+          <CircularProgress size={18} />
+        </Box>
+      )}
 
-      <Box sx={{ display: "flex", gap: 1, overflowX: "auto" }}>
-        {accounts.map((acc) => (
-          <Box
-            key={acc.id}
-            onClick={() => setSelectedAccountId(acc.id)}
-            sx={{
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              fontSize: 13,
-              whiteSpace: "nowrap",
-              cursor: "pointer",
-              border: "1px solid",
-              borderColor:
-                selectedAccountId === acc.id ? "#22c55e" : "#374151",
-              backgroundColor:
-                selectedAccountId === acc.id ? "#052e16" : "#020617",
-              color:
-                selectedAccountId === acc.id ? "#22c55e" : "#e5e7eb",
-            }}
-          >
-            {acc.name}
-          </Box>
-        ))}
-      </Box>
+      {/* ✅ Connected + accounts exist → show account chips */}
+      {isConnected && !accountsLoading && accounts.length > 0 && (
+        <Box sx={{ display: "flex", gap: 1, overflowX: "auto", mt: 1 }}>
+          {accounts.map((acc) => (
+            <Box
+              key={acc.id}
+              onClick={async () => {
+                try {
+                  await fetch(
+                    `${import.meta.env.VITE_BACKEND_URL}/accounts/switch`,
+                    {
+                      method: "POST",
+                      credentials: "include",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ account_id: acc.id }),
+                    }
+                  );
+
+                  setSelectedAccountId(acc.id);
+                } catch (e) {
+                  console.error("Mobile account switch failed", e);
+                }
+              }}
+              sx={{
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                border: "1px solid",
+                borderColor:
+                  selectedAccountId === acc.id ? "#22c55e" : "#374151",
+                backgroundColor:
+                  selectedAccountId === acc.id ? "#052e16" : "#020617",
+                color:
+                  selectedAccountId === acc.id ? "#22c55e" : "#e5e7eb",
+              }}
+            >
+              {acc.name}
+            </Box>
+          ))}
+        </Box>
+      )}
+
+      {/* ⚠️ Connected but no accounts (edge case) */}
+      {isConnected && !accountsLoading && accounts.length === 0 && (
+        <Typography
+          fontSize={12}
+          color="#9ca3af"
+          sx={{ mt: 1, textAlign: "center" }}
+        >
+          No accounts found
+        </Typography>
+      )}
     </Box>
   );
 }

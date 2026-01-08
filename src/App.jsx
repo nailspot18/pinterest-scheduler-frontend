@@ -145,6 +145,8 @@ function buildTimeSlots() {
 
    
     useEffect(() => {
+      let cancelled = false;
+
       const checkAuth = async () => {
         try {
           const res = await fetch(`${BACKEND}/auth/status`, {
@@ -152,50 +154,24 @@ function buildTimeSlots() {
           });
           const data = await res.json();
           console.log("AUTH STATUS:", data);
-          setIsConnected(Boolean(data.connected));
+
+          if (!cancelled) {
+            setIsConnected(Boolean(data.connected));
+          }
         } catch (e) {
           console.error("Auth check failed:", e);
-          setIsConnected(false);
+          if (!cancelled) setIsConnected(false);
         }
       };
 
-      const params = new URLSearchParams(window.location.search);
+      checkAuth();
 
-      if (params.get("auth") === "success") {
-        checkAuth();
-        // 🔥 clean URL so refreshes don’t repeat logic
-        window.history.replaceState({}, "", window.location.pathname);
-      } else {
-        checkAuth();
-      }
-    }, []);
-
-
-
-    useEffect(() => {
-      const checkAuth = async () => {
-        try {
-          const res = await fetch(`${BACKEND}/auth/status`, {
-            credentials: "include",
-          });
-          const data = await res.json();
-          console.log("AUTH STATUS:", data);
-          setIsConnected(Boolean(data.connected));
-        } catch (e) {
-          console.error("Auth check failed:", e);
-          setIsConnected(false);
-        }
+      return () => {
+        cancelled = true;
       };
-
-      const params = new URLSearchParams(window.location.search);
-
-      if (params.get("auth") === "success") {
-        checkAuth();
-        window.history.replaceState({}, "", window.location.pathname);
-      } else {
-        checkAuth();
-      }
     }, []);
+
+
 
 
 
