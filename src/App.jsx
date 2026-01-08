@@ -10,6 +10,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Autocomplete } from "@mui/material";
 import MobileDashboard from "./mobile/MobileDashboard";
+import { useSearchParams } from "react-router-dom";
+
 
 
 
@@ -100,6 +102,9 @@ function buildTimeSlots() {
     const [editingDraftId, setEditingDraftId] = useState(null)
     const [editingScheduledPin, setEditingScheduledPin] = useState(null)
     const isMobile = window.innerWidth < 768;
+    const [searchParams, setSearchParams] = useSearchParams();
+    const authSuccess = searchParams.get("auth") === "success";
+
 
 
 
@@ -170,6 +175,31 @@ function buildTimeSlots() {
       }
     }, []);
 
+
+    // 🔁 STEP 3: After OAuth redirect, re-sync accounts + active account
+    useEffect(() => {
+      if (!authSuccess) return;
+
+      console.log("🔄 OAuth success detected — refetching accounts");
+
+      fetch(`${BACKEND}/accounts`, {
+        credentials: "include",
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (!data) return;
+
+          setAccounts(data.accounts || []);
+          setSelectedAccountId(data.active_account_id || null);
+        })
+        .catch(err => {
+          console.error("Post-OAuth accounts fetch failed:", err);
+        });
+
+      // 🔥 clean the URL so this runs only once
+      setSearchParams({}, { replace: true });
+
+    }, [authSuccess]);
 
 
     function normalizeRemoteUrl(url) {
