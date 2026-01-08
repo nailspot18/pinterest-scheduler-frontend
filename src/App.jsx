@@ -10,7 +10,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Autocomplete } from "@mui/material";
 import MobileDashboard from "./mobile/MobileDashboard";
-import { useSearchParams } from "react-router-dom";
+
 
 
 
@@ -102,8 +102,7 @@ function buildTimeSlots() {
     const [editingDraftId, setEditingDraftId] = useState(null)
     const [editingScheduledPin, setEditingScheduledPin] = useState(null)
     const isMobile = window.innerWidth < 768;
-    const [searchParams, setSearchParams] = useSearchParams();
-    const authSuccess = searchParams.get("auth") === "success";
+    
 
 
 
@@ -154,10 +153,6 @@ function buildTimeSlots() {
           const data = await res.json();
           console.log("AUTH STATUS:", data);
           setIsConnected(Boolean(data.connected));
-          if (data.connected) {
-            // 🔥 force re-fetch scheduled pins after refresh
-            setRefreshKey(k => k + 1);
-          }
         } catch (e) {
           console.error("Auth check failed:", e);
           setIsConnected(false);
@@ -166,14 +161,15 @@ function buildTimeSlots() {
 
       const params = new URLSearchParams(window.location.search);
 
-      // 🚨 IMPORTANT: if returning from OAuth, FORCE re-check
       if (params.get("auth") === "success") {
         checkAuth();
+        // 🔥 clean URL so refreshes don’t repeat logic
         window.history.replaceState({}, "", window.location.pathname);
       } else {
         checkAuth();
       }
     }, []);
+
 
 
     // 🔁 STEP 3: After OAuth redirect, re-sync accounts + active account
